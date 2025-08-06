@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Chat Room - WebRTC</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .controls {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group h3 {
+            margin-bottom: 15px;
+            color: #495057;
+            font-size: 1.1rem;
+        }
+        
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        input {
+            padding: 12px 16px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            min-width: 200px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .record-btn {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+        }
+        
+        .record-btn:hover:not(:disabled) {
+            box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+        }
+        
+        .record-btn.recording {
+            background: linear-gradient(135deg, #28a745, #218838);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .video-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .video-box {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        
+        .video-box:hover {
+            transform: translateY(-5px);
+        }
+        
+        video {
+            width: 100%;
+            height: 250px;
+            background: #000;
+            border-radius: 10px;
+            object-fit: cover;
+        }
+        
+        .video-label {
+            text-align: center;
+            margin-top: 15px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        
+        .status-panel {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+        
+        .status, .error, .success {
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        
+        .status {
+            background: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #f44336;
+        }
+        
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .session-info {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+            margin-top: 15px;
+            transition: border-color 0.3s;
+        }
+        
+        .upload-area.dragover {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+        
+        .file-input {
+            margin: 10px;
+        }
+        
+        .stats-btn {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3);
+        }
+        
+        .stats-btn:hover:not(:disabled) {
+            box-shadow: 0 6px 20px rgba(23, 162, 184, 0.4);
+        }
+        
+        .user-count {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .recording-indicator {
+            display: inline-block;
+            background: #dc3545;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+            animation: pulse 2s infinite;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .control-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            input, button {
+                width: 100%;
+            }
+            
+            .video-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Video Chat Room</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <h3>Room Management</h3>
+                <div class="control-row">
+                    <input type="text" id="roomInput" placeholder="Enter room ID" value="room-1">
+                    <button id="joinBtn">Join Room</button>
+                    <button id="leaveBtn" disabled>Leave Room</button>
+                    <button id="statsBtn" class="stats-btn">Show Stats</button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Media Controls</h3>
+                <div class="control-row">
+                    <button id="toggleVideo">Turn Off Video</button>
+                    <button id="toggleAudio">Mute Audio</button>
+                    <button id="recordBtn" class="record-btn">Start Recording</button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>File Upload</h3>
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="fileInput" accept="audio/*,video/*" class="file-input">
+                    <button id="uploadBtn" disabled>Upload File</button>
+                    <p>Drag and drop files here or use the button above</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="sessionInfo" class="session-info" style="display: none;"></div>
+        
+        <div class="video-container">
+            <div class="video-box">
+                <video id="localVideo" autoplay muted></video>
+                <div class="video-label">You (Local)</div>
+            </div>
+        </div>
+        
+        <div class="status-panel">
+            <div id="status" class="status">Ready to connect</div>
+            <div id="error" class="error" style="display: none;"></div>
+            <div id="success" class="success" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        class VideoChatClient {
+            constructor() {
+                this.ws = null;
+                this.localStream = null;
+                this.peerConnections = {};
+                this.currentRoom = null;
+                this.userId = null;
+                this.sessionId = null;
+                this.mediaRecorder = null;
+                this.recordedChunks = [];
+                this.isRecording = false;
+                this.userCount = 0;
+                this.isRecordingSession = false;
+                
+                this.initializeElements();
+                this.attachEventListeners();
+                this.connectWebSocket();
+            }
+            
+            initializeElements() {
+                this.elements = {
+                    roomInput: document.getElementById('roomInput'),
+                    joinBtn: document.getElementById('joinBtn'),
+                    leaveBtn: document.getElementById('leaveBtn'),
+                    toggleVideoBtn: document.getElementById('toggleVideo'),
+                    toggleAudioBtn: document.getElementById('toggleAudio'),
+                    recordBtn: document.getElementById('recordBtn'),
+                    fileInput: document.getElementById('fileInput'),
+                    uploadBtn: document.getElementById('uploadBtn'),
+                    uploadArea: document.getElementById('uploadArea'),
+                    statsBtn: document.getElementById('statsBtn'),
+                    localVideo: document.getElementById('localVideo'),
+                    sessionInfo: document.getElementById('sessionInfo'),
+                    status: document.getElementById('status'),
+                    error: document.getElementById('error'),
+                    success: document.getElementById('success'),
+                    videoContainer: document.querySelector('.video-container')
+                };
+            }
+            
+            attachEventListeners() {
+                this.elements.joinBtn.addEventListener('click', () => this.joinRoom());
+                this.elements.leaveBtn.addEventListener('click', () => this.leaveRoom());
+                this.elements.toggleVideoBtn.addEventListener('click', () => this.toggleVideo());
+                this.elements.toggleAudioBtn.addEventListener('click', () => this.toggleAudio());
+                this.elements.recordBtn.addEventListener('click', () => this.toggleRecording());
+                this.elements.uploadBtn.addEventListener('click', () => this.uploadFile());
+                this.elements.statsBtn.addEventListener('click', () => this.showStats());
+                this.elements.fileInput.addEventListener('change', () => this.onFileSelected());
+                
+                // Drag and drop for file upload
+                this.elements.uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.elements.uploadArea.classList.add('dragover');
+                });
+                
+                this.elements.uploadArea.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    this.elements.uploadArea.classList.remove('dragover');
+                });
+                
+                this.elements.uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    this.elements.uploadArea.classList.remove('dragover');
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.elements.fileInput.files = files;
+                        this.onFileSelected();
+                    }
+                });
+            }
+            
+            connectWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+                
+                this.ws = new WebSocket(wsUrl);
+                
+                this.ws.onopen = () => {
+                    this.updateStatus('Connected to server');
+                };
+                
+                this.ws.onmessage = async (event) => {
+                    const data = JSON.parse(event.data);
+                    await this.handleMessage(data);
+                };
+                
+                this.ws.onclose = () => {
+                    this.updateStatus('Disconnected from server - Reconnecting...');
+                    setTimeout(() => this.connectWebSocket(), 3000);
+                };
+                
+                this.ws.onerror = (error) => {
+                    this.showError('Connection error occurred');
+                };
+            }
+            
+            async handleMessage(data) {
+                switch(data.type) {
+                    case 'room_joined':
+                        await this.onRoomJoined(data);
+                        break;
+                    case 'room_full':
+                        this.showError('Room is full (max 5 users)');
+                        break;
+                    case 'user_joined':
+                        await this.onUserJoined(data);
+                        break;
+                    case 'user_left':
+                        this.onUserLeft(data);
+                        break;
+                    case 'offer':
+                        await this.handleOffer(data);
+                        break;
+                    case 'answer':
+                        await this.handleAnswer(data);
+                        break;
+                    case 'ice_candidate':
+                        await this.handleIceCandidate(data);
+                        break;
+                    case 'recording_started':
+                        this.onRecordingStarted(data);
+                        break;
+                    case 'recording_stopped':
+                        this.onRecordingStopped(data);
+                        break;
+                    case 'recording_status':
+                        this.onRecordingStatus(data);
+                        break;
+                    case 'error':
+                        this.showError(data.message);
+                        break;
+                }
+            }
+            
+            async onRoomJoined(data) {
+                this.userId = data.user_id;
+                this.currentRoom = data.room_id;
+                this.sessionId = data.session_id;
+                this.userCount = data.existing_users.length + 1;
+                
+                this.updateStatus(`Joined room: ${this.currentRoom}`);
+                this.showSessionInfo();
+                
+                this.elements.joinBtn.disabled = true;
+                this.elements.leaveBtn.disabled = false;
+                this.elements.uploadBtn.disabled = false;
+                
+                // Create peer connections for existing users
+                for (const existingUserId of data.existing_users) {
+                    await this.createPeerConnection(existingUserId, true);
+                }
+            }
+            
+            async onUserJoined(data) {
+                this.userCount = data.user_count || this.userCount + 1;
+                this.updateSessionInfo();
+                await this.createPeerConnection(data.user_id, false);
+            }
+            
+            onUserLeft(data) {
+                this.userCount = Math.max(1, this.userCount - 1);
+                this.updateSessionInfo();
+                this.removePeerConnection(data.user_id);
+            }
+            
+            onRecordingStarted(data) {
+                this.showSuccess(`Recording started (Session: ${data.session_id})`);
+            }
+            
+            onRecordingStopped(data) {
+                const duration = data.duration ? ` (${data.duration.toFixed(1)}s)` : '';
+                this.showSuccess(`Recording stopped${duration}`);
+            }
+            
+            onRecordingStatus(data) {
+                this.isRecordingSession = (data.status === 'started');
+                this.updateSessionInfo();
+            }
+            
+            showSessionInfo() {
+                this.elements.sessionInfo.style.display = 'block';
+                this.updateSessionInfo();
+            }
+            
+            updateSessionInfo() {
+                const recordingIndicator = this.isRecordingSession ? 
+                    `<span class="recording-indicator">🔴 RECORDING</span>` : '';
+                
+                this.elements.sessionInfo.innerHTML = 
+                    `Session ID: ${this.sessionId} | Room: ${this.currentRoom}` +
+                    `<span class="user-count">${this.userCount}/5 users</span>` +
+                    recordingIndicator;
+            }
+            
+            hideSessionInfo() {
+                this.elements.sessionInfo.style.display = 'none';
+            }
+            
+            async joinRoom() {
+                if (!this.localStream) {
+                    const success = await this.getLocalStream();
+                    if (!success) return;
+                }
+                
+                const roomId = this.elements.roomInput.value.trim() || 'default';
+                this.send({
+                    type: 'join_room',
+                    room_id: roomId
+                });
+            }
+            
+            leaveRoom() {
+                this.send({ type: 'leave_room' });
+                
+                if (this.isRecording) {
+                    this.stopLocalRecording();
+                }
+                
+                // Close all peer connections
+                Object.keys(this.peerConnections).forEach(userId => {
+                    this.removePeerConnection(userId);
+                });
+                
+                this.currentRoom = null;
+                this.userId = null;
+                this.sessionId = null;
+                this.userCount = 0;
+                this.isRecordingSession = false;
+                
+                this.elements.joinBtn.disabled = false;
+                this.elements.leaveBtn.disabled = true;
+                this.elements.uploadBtn.disabled = true;
+                
+                this.hideSessionInfo();
+                this.updateStatus('Left room');
+            }
+            
+            async getLocalStream() {
+                try {
+                    this.localStream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: 640, height: 480 },
+                        audio: true
+                    });
+                    
+                    this.elements.localVideo.srcObject = this.localStream;
+                    return true;
+                } catch (error) {
+                    this.showError('Could not access camera/microphone: ' + error.message);
+                    return false;
+                }
+            }
+            
+            async createPeerConnection(remoteUserId, isInitiator) {
+                const pc = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                });
+                
+                this.peerConnections[remoteUserId] = pc;
+                
+                // Add local stream
+                if (this.localStream) {
+                    this.localStream.getTracks().forEach(track => {
+                        pc.addTrack(track, this.localStream);
+                    });
+                }
+                
+                // Handle remote stream
+                pc.ontrack = (event) => {
+                    this.createRemoteVideo(remoteUserId, event.streams[0]);
+                };
+                
+                // Handle ICE candidates
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        this.send({
+                            type: 'ice_candidate',
+                            target_id: remoteUserId,
+                            candidate: event.candidate
+                        });
+                    }
+                };
+                
+                // Create offer if initiator
+                if (isInitiator) {
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    
+                    this.send({
+                        type: 'offer',
+                        target_id: remoteUserId,
+                        sdp: offer
+                    });
+                }
+            }
+            
+            async handleOffer(data) {
+                const pc = this.peerConnections[data.from_id];
+                if (!pc) return;
+                
+                await pc.setRemoteDescription(data.sdp);
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                
+                this.send({
+                    type: 'answer',
+                    target_id: data.from_id,
+                    sdp: answer
+                });
+            }
+            
+            async handleAnswer(data) {
+                const pc = this.peerConnections[data.from_id];
+                if (pc) {
+                    await pc.setRemoteDescription(data.sdp);
+                }
+            }
+            
+            async handleIceCandidate(data) {
+                const pc = this.peerConnections[data.from_id];
+                if (pc) {
+                    await pc.addIceCandidate(data.candidate);
+                }
+            }
+            
+            createRemoteVideo(userId, stream) {
+                // Remove existing video
+                const existing = document.getElementById(`video-${userId}`);
+                if (existing) {
+                    existing.parentElement.remove();
+                }
+                
+                const videoBox = document.createElement('div');
+                videoBox.className = 'video-box';
+                
+                const video = document.createElement('video');
+                video.id = `video-${userId}`;
+                video.autoplay = true;
+                video.srcObject = stream;
+                
+                const label = document.createElement('div');
+                label.className = 'video-label';
+                label.textContent = `User ${userId.slice(0, 8)}...`;
+                
+                videoBox.appendChild(video);
+                videoBox.appendChild(label);
+                this.elements.videoContainer.appendChild(videoBox);
+            }
+            
+            removePeerConnection(userId) {
+                if (this.peerConnections[userId]) {
+                    this.peerConnections[userId].close();
+                    delete this.peerConnections[userId];
+                }
+                
+                const video = document.getElementById(`video-${userId}`);
+                if (video) {
+                    video.parentElement.remove();
+                }
+            }
+            
+            toggleVideo() {
+                if (this.localStream) {
+                    const videoTrack = this.localStream.getVideoTracks()[0];
+                    if (videoTrack) {
+                        videoTrack.enabled = !videoTrack.enabled;
+                        this.elements.toggleVideoBtn.textContent = 
+                            videoTrack.enabled ? 'Turn Off Video' : 'Turn On Video';
+                    }
+                }
+            }
+            
+            toggleAudio() {
+                if (this.localStream) {
+                    const audioTrack = this.localStream.getAudioTracks()[0];
+                    if (audioTrack) {
+                        audioTrack.enabled = !audioTrack.enabled;
+                        this.elements.toggleAudioBtn.textContent = 
+                            audioTrack.enabled ? 'Mute Audio' : 'Unmute Audio';
+                    }
+                }
+            }
+            
+            toggleRecording() {
+                if (this.isRecording) {
+                    this.stopRecording();
+                } else {
+                    this.startRecording();
+                }
+            }
+            
+            startRecording() {
+                if (!this.currentRoom) {
+                    this.showError('Please join a room first');
+                    return;
+                }
+                
+                // Start server-side recording
+                this.send({ type: 'start_recording' });
+                
+                // Start local recording
+                this.startLocalRecording();
+            }
+            
+            stopRecording() {
+                // Stop server-side recording
+                this.send({ type: 'stop_recording' });
+                
+                // Stop local recording
+                this.stopLocalRecording();
+            }
+            
+            startLocalRecording() {
+                if (!this.localStream) return;
+                
+                try {
+                    this.recordedChunks = [];
+                    this.mediaRecorder = new MediaRecorder(this.localStream);
+                    
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            this.recordedChunks.push(event.data);
+                        }
+                    };
+                    
+                    this.mediaRecorder.onstop = () => {
+                        this.saveLocalRecording();
+                    };
+                    
+                    this.mediaRecorder.start();
+                    this.isRecording = true;
+                    this.elements.recordBtn.textContent = 'Stop Recording';
+                    this.elements.recordBtn.classList.add('recording');
+                    
+                } catch (error) {
+                    this.showError('Failed to start local recording: ' + error.message);
+                }
+            }
+            
+            stopLocalRecording() {
+                if (this.mediaRecorder && this.isRecording) {
+                    this.mediaRecorder.stop();
+                    this.isRecording = false;
+                    this.elements.recordBtn.textContent = 'Start Recording';
+                    this.elements.recordBtn.classList.remove('recording');
+                }
+            }
+            
+            async saveLocalRecording() {
+                if (this.recordedChunks.length === 0 || !this.sessionId) return;
+                
+                try {
+                    const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+                    const formData = new FormData();
+                    formData.append('video', blob, 'local_recording.webm');
+                    
+                    const response = await fetch(`/upload?session_id=${this.sessionId}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.showSuccess(`Local recording saved: ${result.filename}`);
+                    } else {
+                        this.showError(`Failed to save recording: ${result.message}`);
+                    }
+                    
+                } catch (error) {
+                    this.showError('Failed to save local recording: ' + error.message);
+                }
+            }
+            
+            onFileSelected() {
+                const hasFile = this.elements.fileInput.files.length > 0;
+                this.elements.uploadBtn.disabled = !hasFile || !this.sessionId;
+                
+                if (hasFile) {
+                    const file = this.elements.fileInput.files[0];
+                    this.elements.uploadBtn.textContent = `Upload ${file.name}`;
+                } else {
+                    this.elements.uploadBtn.textContent = 'Upload File';
+                }
+            }
+            
+            async uploadFile() {
+                const fileInput = this.elements.fileInput;
+                const file = fileInput.files[0];
+                
+                if (!file || !this.sessionId) {
+                    this.showError('Please select a file and join a room first');
+                    return;
+                }
+                
+                try {
+                    const formData = new FormData();
+                    const fieldName = file.type.startsWith('audio/') ? 'audio' : 'video';
+                    formData.append(fieldName, file);
+                    
+                    this.elements.uploadBtn.textContent = 'Uploading...';
+                    this.elements.uploadBtn.disabled = true;
+                    
+                    const response = await fetch(`/upload?session_id=${this.sessionId}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.showSuccess(`File uploaded: ${result.filename} (${this.formatFileSize(result.file_size)})`);
+                        fileInput.value = ''; // Clear file input
+                        this.onFileSelected(); // Update button state
+                    } else {
+                        this.showError(`Upload failed: ${result.message}`);
+                    }
+                    
+                } catch (error) {
+                    this.showError('Upload failed: ' + error.message);
+                } finally {
+                    this.elements.uploadBtn.disabled = false;
+                    this.onFileSelected();
+                }
+            }
+            
+            async showStats() {
+                try {
+                    const response = await fetch('/stats');
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        const stats = result.stats;
+                        let statsMessage = 'Application Statistics:\n\n';
+                        statsMessage += `Connections: ${stats.connections.total_connections}\n`;
+                        statsMessage += `Rooms: ${stats.rooms.total_rooms}\n`;
+                        statsMessage += `Active Sessions: ${stats.sessions.active_sessions}\n`;
+                        statsMessage += `Peer Connections: ${stats.webrtc.total_peer_connections}\n`;
+                        statsMessage += `Active Recordings: ${stats.recordings.active_recordings}\n`;
+                        
+                        alert(statsMessage);
+                    }
+                } catch (error) {
+                    this.showError('Failed to load stats');
+                }
+            }
+            
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            send(message) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify(message));
+                }
+            }
+            
+            updateStatus(message) {
+                this.elements.status.textContent = message;
+                this.hideMessages();
+            }
+            
+            showError(message) {
+                this.elements.error.textContent = message;
+                this.elements.error.style.display = 'block';
+                this.elements.success.style.display = 'none';
+            }
+            
+            showSuccess(message) {
+                this.elements.success.textContent = message;
+                this.elements.success.style.display = 'block';
+                this.elements.error.style.display = 'none';
+            }
+            
+            hideMessages() {
+                this.elements.error.style.display = 'none';
+                this.elements.success.style.display = 'none';
+            }
+        }
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            new VideoChatClient();
+        });
+    </script>
+</body>
+</html>
