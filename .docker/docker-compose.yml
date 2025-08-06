@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  video-chat-app:
+    build:
+      context: ..
+      dockerfile: .docker/Dockerfile
+    container_name: video-chat-room
+    ports:
+      - "8080:8080"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - MAX_USERS_PER_ROOM=5
+      - LOG_LEVEL=INFO
+      - SESSIONS_BASE_PATH=sessions
+      - MAX_FILE_SIZE=104857600
+      - CORS_ORIGINS=*
+    volumes:
+      # Persist session data
+      - video_sessions:/app/sessions
+      # Persist recordings
+      - video_recordings:/app/recordings
+      # Optional: Mount source code for development (uncomment for dev mode)
+      # - ../src:/app/src
+      # - ../templates:/app/templates
+      # - ../main.py:/app/main.py
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+    networks:
+      - video-chat-network
+
+volumes:
+  video_sessions:
+    driver: local
+  video_recordings:
+    driver: local
+
+networks:
+  video-chat-network:
+    driver: bridge
